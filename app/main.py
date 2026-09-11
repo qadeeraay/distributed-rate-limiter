@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -12,10 +13,9 @@ from app.middleware.rate_limit import DistributedRateLimitMiddleware
 
 logger = logging.getLogger("rate_limiter")
 
-import asyncio
-
 _redis_pool: Optional[aioredis.Redis] = None
 _pool_loop = None
+
 
 
 def get_redis_client() -> aioredis.Redis:

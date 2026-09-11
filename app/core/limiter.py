@@ -60,8 +60,9 @@ class DistributedRateLimiter:
             else:
                 return await self._check_sliding_window(identifier, policy)
         except Exception as err:
-            logger.error("Rate limit check failed for %s: %s", identifier, err)
+            logger.error("Rate limit check failed for policy %s: %s", policy.name, err)
             if settings.CIRCUIT_BREAKER_FAIL_OPEN:
+
                 # Fail open to avoid blocking traffic during transient Redis degradation
                 return RateLimitResult(
                     allowed=True,
