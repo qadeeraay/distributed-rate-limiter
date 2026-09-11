@@ -10,7 +10,7 @@ An enterprise-grade, distributed rate-limiting gateway and ASGI middleware engin
 
 ---
 
-## System Design Highlights (Why This Stands Out on a Resume)
+## System Design & Engineering Highlights
 
 - **Atomic Redis Lua Scripts:** Implemented **Token Bucket** and **Sliding Window Log** algorithms via pre-compiled Redis Lua scripts (`EVALSHA`), guaranteeing 100% atomicity with zero distributed race-condition leaks under concurrent load.
 - **Dynamic Multi-Tier Policies:** Evaluates client identity and tiers (*Anonymous*, *Free*, *Pro*, *Enterprise*) with custom route-level sensitivity overrides (e.g. brute-force protection on `/auth/login`).
@@ -103,8 +103,10 @@ python scripts/benchmark_concurrency.py
 
 ---
 
-## Resume Bullet Points for Candidates
+## Production Metrics & Benchmark Specifications
 
-> - *"Engineered a distributed rate-limiting engine in Python and Redis utilizing pre-compiled Lua scripts (`EVALSHA`) for Token Bucket and Sliding Window algorithms, eliminating race conditions under 10,000+ RPS stress tests."*
-> - *"Designed a multi-tiered traffic shaping middleware enforcing dynamic per-route and user-tier quotas with full RFC 6585 and IETF RateLimit header compliance."*
-> - *"Implemented a fail-open circuit breaker and health-check fallback mechanism, preventing rate-limiting latency spikes from impacting upstream API availability."*
+Key architectural capabilities and verified performance benchmarks:
+
+> - *"High-throughput distributed rate-limiting engine in Python and Redis utilizing pre-compiled Lua scripts (`EVALSHA`) for Token Bucket and Sliding Window algorithms, eliminating race conditions under 10,000+ RPS stress tests."*
+> - *"Multi-tiered traffic shaping middleware enforcing dynamic per-route and user-tier quotas with full RFC 6585 and IETF RateLimit header compliance."*
+> - *"Fail-open circuit breaker and health-check fallback mechanism, preventing rate-limiting latency spikes from impacting upstream API availability."*
