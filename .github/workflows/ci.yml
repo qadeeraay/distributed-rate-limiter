@@ -43,11 +43,11 @@ jobs:
 
     - name: Run Algorithm & Policy Tests
       run: |
-        python3 -m unittest discover -s tests -p "test_algorithms.py" -v
+        PYTHONPATH=. python3 -m unittest discover -s tests -p "test_algorithms.py" -v
 
     - name: Run Middleware Tests
       run: |
-        pytest tests/test_middleware.py -v
+        PYTHONPATH=. python3 -m pytest tests/test_middleware.py -v
 
     - name: Run Algorithmic Simulation Demo
       run: |
