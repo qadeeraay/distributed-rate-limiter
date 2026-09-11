@@ -14,29 +14,28 @@ from app.middleware.rate_limit import DistributedRateLimitMiddleware
 logger = logging.getLogger("rate_limiter")
 
 _redis_pool: Optional[aioredis.Redis] = None
-_pool_loop = None
-
 
 
 def get_redis_client() -> aioredis.Redis:
-    global _redis_pool, _pool_loop
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if _redis_pool is None or (_pool_loop is not None and _pool_loop != loop):
+    global _redis_pool
+    if _redis_pool is None:
         _redis_pool = aioredis.from_url(settings.redis_url, decode_responses=False)
-        _pool_loop = loop
+    else:
+        try:
+            current_loop = asyncio.get_running_loop()
+            if getattr(_redis_pool, "_bound_loop", None) != id(current_loop):
+                _redis_pool = aioredis.from_url(settings.redis_url, decode_responses=False)
+                setattr(_redis_pool, "_bound_loop", id(current_loop))
+        except RuntimeError:
+            pass
     return _redis_pool
 
 
 async def close_redis_pool() -> None:
-    global _redis_pool, _pool_loop
+    global _redis_pool
     if _redis_pool is not None:
         await _redis_pool.aclose()
         _redis_pool = None
-        _pool_loop = None
 
 
 @asynccontextmanager
