@@ -22,9 +22,9 @@ class RateLimitResult:
 
 class DistributedRateLimiter:
     """
-    Production-Grade Distributed Rate Limiting Engine.
-    Executes atomic Token Bucket & Sliding Window Log algorithms via Redis EVALSHA.
-    Includes fail-open circuit breaking to preserve upstream availability if Redis is degraded.
+    Evaluates rate limits atomically via Redis EVALSHA.
+    Supports Token Bucket (burst + steady refill) and Sliding Window Log (precise windowing).
+    Fails open if Redis is unavailable to preserve upstream service availability.
     """
 
     def __init__(self, redis_client: aioredis.Redis):
@@ -51,9 +51,6 @@ class DistributedRateLimiter:
         policy: RatePolicy,
         cost: int = 1
     ) -> RateLimitResult:
-        """
-        Atomically checks and consumes quota for a given identifier against a policy.
-        """
         if not self._sliding_window_sha or not self._token_bucket_sha:
             await self.initialize_scripts()
 
@@ -62,10 +59,10 @@ class DistributedRateLimiter:
                 return await self._check_token_bucket(identifier, policy, cost)
             else:
                 return await self._check_sliding_window(identifier, policy)
-        except Exception as ex:
-            logger.error(f"Redis rate limit check failed: {ex}")
+        except Exception as err:
+            logger.error("Rate limit check failed for %s: %s", identifier, err)
             if settings.CIRCUIT_BREAKER_FAIL_OPEN:
-                # Fail-open: allow traffic during redis disruption, log alert
+                # Fail open to avoid blocking traffic during transient Redis degradation
                 return RateLimitResult(
                     allowed=True,
                     limit=policy.limit,
@@ -75,6 +72,7 @@ class DistributedRateLimiter:
                     algorithm=policy.algorithm
                 )
             raise
+
 
     async def _check_sliding_window(self, identifier: str, policy: RatePolicy) -> RateLimitResult:
         key = f"rate_limit:sliding:{identifier}"

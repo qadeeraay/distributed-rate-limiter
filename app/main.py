@@ -1,4 +1,6 @@
+import logging
 from contextlib import asynccontextmanager
+from typing import Optional
 from fastapi import FastAPI, Header
 from fastapi.responses import JSONResponse
 import redis.asyncio as aioredis
@@ -8,54 +10,55 @@ from starlette.responses import Response
 from app.config import settings
 from app.middleware.rate_limit import DistributedRateLimitMiddleware
 
-redis_client: aioredis.Redis = None
+logger = logging.getLogger("rate_limiter")
+
+_redis_pool: Optional[aioredis.Redis] = None
+
+
+def get_redis_client() -> aioredis.Redis:
+    global _redis_pool
+    if _redis_pool is None:
+        _redis_pool = aioredis.from_url(settings.redis_url, decode_responses=False)
+    return _redis_pool
+
+
+async def close_redis_pool() -> None:
+    global _redis_pool
+    if _redis_pool is not None:
+        await _redis_pool.aclose()
+        _redis_pool = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global redis_client
-    redis_client = aioredis.from_url(settings.redis_url, decode_responses=False)
-    # Ping redis
+    client = get_redis_client()
     try:
-        await redis_client.ping()
-    except Exception as e:
-        print(f"Warning: Redis connection pending: {e}")
+        await client.ping()
+    except Exception as err:
+        logger.warning("Initial Redis connection check deferred: %s", err)
 
     yield
 
-    if redis_client:
-        await redis_client.aclose()
+    await close_redis_pool()
 
 
 app = FastAPI(
     title="Distributed API Gateway Rate Limiter",
-    description=(
-        "Production-Grade Distributed Rate Limiting Gateway.\n\n"
-        "### Core Engineering Features:\n"
-        "- **Atomic Redis Lua Scripts:** Zero race-condition execution via EVALSHA\n"
-        "- **Dual Algorithms:** Sliding Window Log & Token Bucket\n"
-        "- **Multi-Tiered Quotas:** Anonymous, Free, Pro, Enterprise, and route-level overrides\n"
-        "- **IETF Compliance:** Full RFC 6585 headers (RateLimit-Limit, Remaining, Reset, Retry-After)\n"
-        "- **Fail-Open Resilience:** Circuit breaker fallback if Redis is degraded"
-    ),
+    description="Distributed rate limiting gateway enforcing atomic Token Bucket and Sliding Window policies with IETF header compliance.",
     version="1.0.0",
     lifespan=lifespan
 )
 
-# Connect Redis client for middleware
-app_redis = aioredis.from_url(settings.redis_url, decode_responses=False)
-app.add_middleware(DistributedRateLimitMiddleware, redis_client=app_redis)
+app.add_middleware(DistributedRateLimitMiddleware, redis_client=get_redis_client())
 
 
-@app.get("/api/v1/public", tags=["Demonstration API"])
+@app.get("/api/v1/public", tags=["API Gateway"])
 async def public_endpoint():
-    """General public route subject to default tiered rate limits."""
     return {"status": "success", "message": "Public resource accessed."}
 
 
-@app.get("/api/v1/user/profile", tags=["Demonstration API"])
+@app.get("/api/v1/user/profile", tags=["API Gateway"])
 async def user_profile(x_user_tier: str = Header(default="free")):
-    """Tiered profile route (pass header 'X-User-Tier: pro' or 'enterprise')."""
     return {
         "status": "success",
         "tier": x_user_tier,
@@ -63,19 +66,16 @@ async def user_profile(x_user_tier: str = Header(default="free")):
     }
 
 
-@app.post("/api/v1/checkout", tags=["Demonstration API"])
+@app.post("/api/v1/checkout", tags=["API Gateway"])
 async def checkout_action():
-    """Sensitive high-value route with strict security overrides."""
     return {"status": "success", "message": "Checkout initiated."}
 
 
 @app.get("/healthz", tags=["Observability"])
 async def healthcheck():
-    """Readiness probe."""
     try:
-        r = aioredis.from_url(settings.redis_url)
-        await r.ping()
-        await r.aclose()
+        client = get_redis_client()
+        await client.ping()
         return {"status": "UP", "redis": "UP"}
     except Exception:
         return JSONResponse(status_code=503, content={"status": "DEGRADED", "redis": "DOWN"})
@@ -84,3 +84,4 @@ async def healthcheck():
 @app.get("/metrics", tags=["Observability"])
 async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+

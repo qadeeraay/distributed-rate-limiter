@@ -41,14 +41,7 @@ jobs:
       run: |
         flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
 
-    - name: Run Algorithm & Policy Tests
+    - name: Run Test Suite
       run: |
         PYTHONPATH=. python3 -m unittest discover -s tests -p "test_algorithms.py" -v
-
-    - name: Run Middleware Tests
-      run: |
-        PYTHONPATH=. python3 -m pytest tests/test_middleware.py -v
-
-    - name: Run Algorithmic Simulation Demo
-      run: |
-        python3 scripts/demo.py
+        PYTHONPATH=. pytest tests/test_middleware.py -v
