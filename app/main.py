@@ -26,8 +26,9 @@ def get_redis_client() -> aioredis.Redis:
             if getattr(_redis_pool, "_bound_loop", None) != id(current_loop):
                 _redis_pool = aioredis.from_url(settings.redis_url, decode_responses=False)
                 setattr(_redis_pool, "_bound_loop", id(current_loop))
-        except RuntimeError:
-            pass
+        except RuntimeError as err:
+            logger.debug("Active event loop check skipped: %s", err)
+
     return _redis_pool
 
 
