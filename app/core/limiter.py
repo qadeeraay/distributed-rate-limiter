@@ -2,7 +2,7 @@ import os
 import time
 import logging
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 import redis.asyncio as aioredis
 from app.config import settings
 from app.core.policies import RatePolicy

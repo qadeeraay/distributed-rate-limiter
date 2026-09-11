@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional, Dict
+from typing import Optional
 
 
 class RateLimitTier(BaseSettings):

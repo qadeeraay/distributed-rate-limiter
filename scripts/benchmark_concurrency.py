@@ -22,10 +22,10 @@ async def fire_request(client: httpx.AsyncClient, worker_id: int, results: list)
 
 
 async def run_concurrency_benchmark():
-    print(f"============================================================")
-    print(f" Distributed Rate Limiter - High Concurrency Stress Test")
+    print("============================================================")
+    print(" Distributed Rate Limiter - High Concurrency Stress Test")
     print(f" Simulating {TOTAL_REQUESTS} concurrent requests from single IP")
-    print(f"============================================================")
+    print("============================================================")
 
     limits = httpx.Limits(max_connections=CONCURRENCY, max_keepalive_connections=CONCURRENCY)
     async with httpx.AsyncClient(limits=limits, timeout=5.0) as client:
@@ -56,7 +56,7 @@ async def run_concurrency_benchmark():
     print(f" Latency p50:           {p50:.2f} ms")
     print(f" Latency p95:           {p95:.2f} ms")
     print(f" Latency p99:           {p99:.2f} ms")
-    print(f" Race Condition Leaks:  0 (Strict Atomicity via Redis Lua)")
+    print(" Race Condition Leaks:  0 (Strict Atomicity via Redis Lua)")
     print("------------------------------------------------------------\n")
 
 

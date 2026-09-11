@@ -2,7 +2,6 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import redis.asyncio as aioredis
-from app.config import settings
 from app.core.limiter import DistributedRateLimiter
 from app.core.policies import resolve_policy
 

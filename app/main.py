@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import FastAPI, Header
 from fastapi.responses import JSONResponse
 import redis.asyncio as aioredis
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
