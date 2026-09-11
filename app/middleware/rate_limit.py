@@ -1,3 +1,4 @@
+from typing import Optional, Callable
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -8,17 +9,27 @@ from app.core.policies import resolve_policy
 
 class DistributedRateLimitMiddleware(BaseHTTPMiddleware):
     """
-    High-Performance ASGI Rate Limiting Middleware.
-    Inspects incoming requests, determines client identity and tier,
-    enforces atomic Redis-backed rate limits, and appends IETF/RFC headers.
+    ASGI Rate Limiting Middleware.
+    Enforces atomic Redis-backed rate limits and appends IETF/RFC headers.
     """
 
-    def __init__(self, app, redis_client: aioredis.Redis):
+    def __init__(
+        self,
+        app,
+        redis_client: Optional[aioredis.Redis] = None,
+        get_redis_client: Optional[Callable[[], aioredis.Redis]] = None
+    ):
         super().__init__(app)
-        self.limiter = DistributedRateLimiter(redis_client)
+        self._redis_client = redis_client
+        self._get_redis_client = get_redis_client
+        self._static_limiter = DistributedRateLimiter(redis_client) if redis_client else None
+
+    def _resolve_limiter(self) -> DistributedRateLimiter:
+        if self._get_redis_client:
+            return DistributedRateLimiter(self._get_redis_client())
+        return self._static_limiter
 
     async def dispatch(self, request: Request, call_next):
-        # Exempt internal healthcheck and metrics endpoints
         if request.url.path in ("/healthz", "/metrics", "/docs", "/openapi.json", "/redoc"):
             return await call_next(request)
 
@@ -38,17 +49,15 @@ class DistributedRateLimitMiddleware(BaseHTTPMiddleware):
                 client_ip = request.client.host if request.client else "127.0.0.1"
             client_id = f"ip_{client_ip}"
 
-        # 2. Resolve client tier
         user_tier = request.headers.get("X-User-Tier", "anonymous")
-
-        # 3. Resolve rate limit policy for the route & tier
         policy = resolve_policy(request.url.path, user_tier)
 
-        # 4. Check quota atomically in Redis
-        result = await self.limiter.check(
+        limiter = self._resolve_limiter()
+        result = await limiter.check(
             identifier=f"{client_id}:{request.url.path}",
             policy=policy
         )
+
 
         # If Limit Exceeded -> Return RFC 6585 HTTP 429 Too Many Requests
         if not result.allowed:
