@@ -22,12 +22,17 @@ class DistributedRateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._redis_client = redis_client
         self._get_redis_client = get_redis_client
-        self._static_limiter = DistributedRateLimiter(redis_client) if redis_client else None
+        self._limiter: Optional[DistributedRateLimiter] = DistributedRateLimiter(redis_client) if redis_client else None
+        self._cached_client: Optional[aioredis.Redis] = redis_client
 
     def _resolve_limiter(self) -> DistributedRateLimiter:
         if self._get_redis_client:
-            return DistributedRateLimiter(self._get_redis_client())
-        return self._static_limiter
+            client = self._get_redis_client()
+            if self._limiter is None or self._cached_client is not client:
+                self._limiter = DistributedRateLimiter(client)
+                self._cached_client = client
+            return self._limiter
+        return self._limiter
 
     async def dispatch(self, request: Request, call_next):
         if request.url.path in ("/healthz", "/metrics", "/docs", "/openapi.json", "/redoc"):
